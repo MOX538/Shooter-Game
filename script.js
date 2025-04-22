@@ -1,12 +1,9 @@
-
-      // Canvas Setup
 const canvas = document.createElement('canvas');
 document.body.appendChild(canvas);
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const ctx = canvas.getContext('2d');
 
-// Game Constants
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const PLAYER_RADIUS = 25;
@@ -15,30 +12,36 @@ const ENEMY_SIZE = 40;
 const ENEMY_SPEED_BASE = 1;
 const SHOOT_COOLDOWN = 200;
 
-// Game State
 let gameState = 'menu';
 let score = 0;
 let lives = 3;
 let health = 5;
 let difficulty = 1;
-let playerShape = 'circle';
 let lastShotTime = 0;
 let enemies = [];
 let bullets = [];
-let player = {
+let keys = {};
+let buttonRegions = [];
+
+const player = {
   x: WIDTH / 2,
-  y: HEIGHT - 100,
-  shape: 'circle',
+  y: HEIGHT - 100
 };
 
-// Controls
-let keys = {};
 document.addEventListener('keydown', e => keys[e.code] = true);
 document.addEventListener('keyup', e => keys[e.code] = false);
 
-let menuButtonsDrawn = false;
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  buttonRegions.forEach(button => {
+    if (mx > button.x && mx < button.x + button.w && my > button.y && my < button.y + button.h) {
+      button.callback();
+    }
+  });
+});
 
-// UI
 function drawButton(text, x, y, w, h, callback) {
   ctx.fillStyle = '#000';
   ctx.fillRect(x, y, w, h);
@@ -47,22 +50,9 @@ function drawButton(text, x, y, w, h, callback) {
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   ctx.fillText(text, x + w / 2, y + h / 2);
-
-  function handler(e) {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    if (mx > x && mx < x + w && my > y && my < y + h) {
-      callback();
-      canvas.removeEventListener('click', handler);
-      menuButtonsDrawn = false;
-    }
-  }
-
-  canvas.addEventListener('click', handler);
+  buttonRegions.push({ x, y, w, h, callback });
 }
 
-// Drawing
 function drawPlayer() {
   ctx.fillStyle = 'blue';
   ctx.beginPath();
@@ -72,9 +62,7 @@ function drawPlayer() {
 
 function drawEnemies() {
   enemies.forEach(enemy => {
-    if (enemy.level === 1) ctx.fillStyle = 'green';
-    else if (enemy.level === 2) ctx.fillStyle = 'yellow';
-    else ctx.fillStyle = 'red';
+    ctx.fillStyle = enemy.level === 1 ? 'green' : enemy.level === 2 ? 'yellow' : 'red';
     ctx.fillRect(enemy.x, enemy.y, ENEMY_SIZE, ENEMY_SIZE);
   });
 }
@@ -96,7 +84,6 @@ function drawHUD() {
   ctx.fillText(`Difficulty: ${difficulty}`, 20, 120);
 }
 
-// Game Logic
 function shootBullet() {
   const now = Date.now();
   if (now - lastShotTime >= SHOOT_COOLDOWN) {
@@ -128,8 +115,7 @@ function updateGame() {
     const e = enemies[i];
     for (let j = bullets.length - 1; j >= 0; j--) {
       const b = bullets[j];
-      if (b.x > e.x && b.x < e.x + ENEMY_SIZE &&
-          b.y > e.y && b.y < e.y + ENEMY_SIZE) {
+      if (b.x > e.x && b.x < e.x + ENEMY_SIZE && b.y > e.y && b.y < e.y + ENEMY_SIZE) {
         enemies.splice(i, 1);
         bullets.splice(j, 1);
         score += 10;
@@ -144,31 +130,26 @@ function updateGame() {
       if (health <= 0) {
         lives--;
         health = 5;
-        if (lives <= 0) {
-          gameState = 'gameover';
-        }
+        if (lives <= 0) gameState = 'gameover';
       }
     }
   }
 }
 
-// Game Loop
 let lastEnemySpawn = Date.now();
 let lastDifficultyIncrease = Date.now();
 
 function loop() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  buttonRegions = [];
 
   if (gameState === 'menu') {
     ctx.fillStyle = 'black';
     ctx.font = '48px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('Shooter Game', WIDTH / 2, HEIGHT / 2 - 100);
+    drawButton('Play', WIDTH / 2 - 100, HEIGHT / 2, 200, 50, () => gameState = 'playing');
 
-    if (!menuButtonsDrawn) {
-      drawButton('Play', WIDTH / 2 - 100, HEIGHT / 2, 200, 50, () => gameState = 'playing');
-      menuButtonsDrawn = true;
-    }
   } else if (gameState === 'playing') {
     updateGame();
     drawPlayer();
@@ -191,26 +172,19 @@ function loop() {
     ctx.textAlign = 'center';
     ctx.fillText('Game Over', WIDTH / 2, HEIGHT / 2 - 100);
     ctx.fillText(`Final Score: ${score}`, WIDTH / 2, HEIGHT / 2 - 50);
-
-    if (!menuButtonsDrawn) {
-      drawButton('Restart', WIDTH / 2 - 100, HEIGHT / 2 + 50, 200, 50, () => {
-        score = 0;
-        lives = 3;
-        health = 5;
-        enemies = [];
-        bullets = [];
-        difficulty = 1;
-        player.x = WIDTH / 2;
-        gameState = 'menu';
-      });
-      menuButtonsDrawn = true;
-    }
+    drawButton('Restart', WIDTH / 2 - 100, HEIGHT / 2 + 50, 200, 50, () => {
+      score = 0;
+      lives = 3;
+      health = 5;
+      enemies = [];
+      bullets = [];
+      difficulty = 1;
+      player.x = WIDTH / 2;
+      gameState = 'menu';
+    });
   }
 
   requestAnimationFrame(loop);
 }
 
 loop();
-
-  </body>
-</html>
